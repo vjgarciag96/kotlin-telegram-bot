@@ -7,6 +7,7 @@ import me.ivmg.telegram.dispatcher.Dispatcher
 import me.ivmg.telegram.entities.BotCommand
 import me.ivmg.telegram.entities.ChatAction
 import me.ivmg.telegram.entities.InlineKeyboardMarkup
+import me.ivmg.telegram.entities.TelegramFile
 import me.ivmg.telegram.entities.ParseMode
 import me.ivmg.telegram.entities.ReplyMarkup
 import me.ivmg.telegram.entities.Update
@@ -21,14 +22,16 @@ import me.ivmg.telegram.errors.TelegramError
 import me.ivmg.telegram.network.ApiClient
 import me.ivmg.telegram.network.call
 import me.ivmg.telegram.types.DispatchableObject
+import me.ivmg.telegram.updater.Updater
 import okhttp3.logging.HttpLoggingInterceptor
 
-fun bot(body: Bot.Builder.() -> Unit) = Bot.Builder().build(body)
+fun bot(body: Bot.Builder.() -> Unit): Bot = Bot.Builder().build(body)
 
 fun Bot.Builder.dispatch(body: Dispatcher.() -> Unit) = updater.dispatcher.apply(body)
 
 class Bot private constructor(
     private val updater: Updater,
+    private val updateMapper: UpdateMapper,
     token: String,
     apiUrl: String,
     timeout: Int = 30,
@@ -43,27 +46,36 @@ class Bot private constructor(
     }
 
     class Builder {
+        private val updateMapper = UpdateMapper()
+        val updater = Updater()
+
         lateinit var token: String
         var timeout: Int = 30
         var apiUrl: String = "https://api.telegram.org/"
         var logLevel: HttpLoggingInterceptor.Level = HttpLoggingInterceptor.Level.BODY
         var proxy: Proxy = Proxy.NO_PROXY
 
-        val updater = Updater()
-
         fun build(): Bot {
-            return Bot(updater, token, apiUrl, timeout, logLevel, proxy)
+            return Bot(updater, updateMapper, token, apiUrl, timeout, logLevel, proxy)
         }
 
         fun build(body: Bot.Builder.() -> Unit): Bot {
             body()
-            return Bot(updater, token, apiUrl, timeout, logLevel, proxy)
+            return Bot(updater, updateMapper, token, apiUrl, timeout, logLevel, proxy)
         }
     }
 
     fun startPolling() = updater.startPolling()
 
     fun stopPolling() = updater.stopPolling()
+
+    fun startCheckingUpdates() {
+        updater.startCheckingUpdates()
+    }
+
+    fun stopCheckingUpdates() {
+        updater.stopCheckingUpdates()
+    }
 
     fun getUpdates(offset: Long): List<DispatchableObject> {
         val call = if (offset > 0)
@@ -91,8 +103,24 @@ class Bot private constructor(
         return emptyList()
     }
 
+    fun setWebhook(
+        url: String,
+        certificate: TelegramFile? = null,
+        maxConnections: Int? = null,
+        allowedUpdates: List<String>? = null
+    ) = apiClient.setWebhook(url, certificate, maxConnections, allowedUpdates).call()
+
+    fun deleteWebhook() = apiClient.deleteWebhook().call()
+
+    fun getWebhookInfo() = apiClient.getWebhookInfo().call()
+
     fun processUpdate(update: Update) {
         updater.dispatcher.updatesQueue.put(update)
+    }
+
+    fun processUpdate(updateJson: String) {
+        val update = updateMapper.jsonToUpdate(updateJson)
+        processUpdate(update)
     }
 
     fun getMe() = apiClient.getMe().call()
