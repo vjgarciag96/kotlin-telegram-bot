@@ -8,7 +8,19 @@ repositories {
 dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib"
     compile "io.ktor:ktor-server-netty:1.2.6"
+    compile "io.ktor:ktor-html-builder:1.2.6"
+    compile "io.ktor:ktor-network-tls:1.2.6"
     compile project(":telegram")
+}
+
+task generateJks(type: JavaExec, dependsOn: 'classes') {
+    classpath = sourceSets.main.runtimeClasspath
+    main = 'me.ivmg.webhook.CertificateGenerator'
+}
+
+task runApp(type: JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    main = 'me.ivmg.webhook.MainKt'
 }
 
 jar {
