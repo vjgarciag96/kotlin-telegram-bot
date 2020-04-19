@@ -9,6 +9,7 @@ import io.ktor.routing.get
 import io.ktor.routing.post
 import io.ktor.routing.routing
 import io.ktor.server.engine.applicationEngineEnvironment
+import io.ktor.server.engine.connector
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.engine.sslConnector
 import io.ktor.server.netty.Netty
@@ -70,12 +71,16 @@ fun main() {
         }
         sslConnector(
             keyStore = CertificateFactory.get(),
-            keyAlias = "mykey",
-            keyStorePassword = { "changeit".toCharArray() },
-            privateKeyPassword = { "changeit".toCharArray() }) {
+            keyAlias = CertificateFactory.ALIAS,
+            keyStorePassword = { CertificateFactory.PASSWORD.toCharArray() },
+            privateKeyPassword = { CertificateFactory.PASSWORD.toCharArray() }) {
             port = 443
             keyStorePath = CertificateFactory.keyStoreFile().absoluteFile
             host = "0.0.0.0"
+        }
+        connector {
+            host = "0.0.0.0"
+            port = 80
         }
     }
     embeddedServer(Netty, env).start(wait = true)
